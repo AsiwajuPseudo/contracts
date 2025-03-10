@@ -25,8 +25,30 @@ class Database:
 
         conn.commit()
 
+    #get a user's profile based on the user_id
+    def user_profile(self, user_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
+                user = cursor.fetchone()
+                if user:
+                    # Base response
+                    response = { "status": "success", "name": user[1], "email": user[2], "phone": user[3], "user_type": user[4], "code": user[5], "status": user[7], "next_date": user[8], "isadmin": user[10]}
+
+                    # Add lawfirm name if user type is "org"
+                    if user[4] == "org":
+                        response["lawfirm_name"] = user[6]
+                    
+                    return response
+                else:
+                    return {"status": "User does not exist"}
+        except Exception as e:
+            print("Error on loading profile: " + str(e))
+            return {"status": "Error: " + str(e)}
+
         
-    def create_contract(self, contract_id, title, owner_id, status, created_at):
+    def create_contract(self, contract_id, title, owner_id, status="open"):
         
         # Generate a random contract ID
         contract_id = "contract" + str(random.randint(1000, 9999))
@@ -34,9 +56,11 @@ class Database:
         current_datetime = datetime.now()
         created_at = str(current_datetime.date)
         try:
-            self.cursor.execute('INSERT INTO contracts (contract_id, title, owner_id, status, created_at) VALUES (?, ?, ?, ?, ?)', 
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('INSERT INTO contracts (contract_id, title, owner_id, status, created_at) VALUES (?, ?, ?, ?, ?)', 
                                 (contract_id, title, owner_id, status, created_at))
-            self.conn.commit()
+                conn.commit()
         except sqlite3.Error as e:
             print(f"Error Creating contract: {e}")
             
