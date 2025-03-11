@@ -14,12 +14,24 @@ database=Database()
 @app.route('/create_contract', methods=['POST'])
 def create_contract():
     data = request.get_json()
-    #get user profile
+    # Input validation
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    if 'user_id' not in data:
+        return jsonify({'error': 'Missing user_id field'}), 400
+    if 'title' not in data:
+        return jsonify({'error': 'Missing title field'}), 400
+    if 'description' not in data:
+        return jsonify({'error' : 'Missing description field'}), 400
+    
+    # Get user profile
     profile = database.user_profile(data['user_id'])
     if 'name' not in profile:
         return jsonify({'error': 'Account does not exist'}), 401
-    if not data or 'user_id' not in data or 'title' not in data or 'description' not in data:
-        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Updated this for detailed error messages
+    # if not data or 'user_id' not in data or 'title' not in data or 'description' not in data:
+    #     return jsonify({'error': 'Missing required fields'}), 400
 
     contract_id = contract_manager.create_contract(
         creator_id=data['user_id'],
@@ -27,7 +39,11 @@ def create_contract():
         title=data['title'],
         description=data['description'],
     )
+    # Store in databse and check result
     add=database.create_contract(contract_id, data['title'], data['user_id'])
+    if not add:
+        return jsonify({'error': 'Failed to create contract'}), 500
+    
     return jsonify({'contract_id': contract_id}), 201
 
 @app.route('/contracts/<contract_id>', methods=['GET'])
