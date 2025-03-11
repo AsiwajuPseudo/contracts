@@ -2,10 +2,12 @@ import json
 import os
 from datetime import datetime
 import uuid
+import threading
 
 class Core:
     def __init__(self, contract_directory="../store"):
         self.contract_directory = contract_directory
+        self.lock = threading.Lock() # lock for thread safety
         if not os.path.exists(self.contract_directory):
             os.makedirs(self.contract_directory)
 
@@ -40,13 +42,17 @@ class Core:
         if not os.path.exists(contract_path):
             return None
         
-        with open(contract_path, "r") as f:
-            return json.load(f)
+        try:
+            with open(contract_path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return None
 
     def save_contract(self, contract):
         contract_path = self._get_contract_path(contract["metadata"]["contract_id"])
-        with open(contract_path, "w") as f:
-            json.dump(contract, f, indent=4)
+        with self.lock:
+            with open(contract_path, "w") as f:
+                json.dump(contract, f, indent=4)
 
     def add_clause(self, contract_id, short_title, full_text, publisher):
         contract = self.open_contract(contract_id)
