@@ -134,7 +134,8 @@ def update_clause(contract_id, clause_id):
         clause_id=clause_id,
         full_text=data['full_text'],
         publisher_id=data['user_id'],
-        publisher_name= publisher_name
+        publisher_name= publisher_name,
+        short_title=data.get('short_title') # For optional renaming
     ):
         return jsonify({
             'message': 'Clause updated successfully',

@@ -74,19 +74,25 @@ class Core:
         self.save_contract(contract)
         return new_clause
 
-    def update_clause(self, contract_id, clause_id, full_text, publisher_id, publisher_name. short_title=None):
+    def update_clause(self, contract_id, clause_id, full_text, publisher_id, publisher_name, short_title=None):
         contract = self.open_contract(contract_id)
         if not contract:
-            return False
+            return False, "Contract not found"
 
         for clause in contract["clauses"]:
             if clause["clause_id"] == clause_id:
+                # Update the clause text
                 clause["versions"].insert(0, {
                     "date": datetime.now().isoformat(),
                     "full_text": full_text,
                     "publisher_id": publisher_id,
                     "publisher_name": publisher_name
                 })
+                
+                # Allow renaming if a short_tile is provided
+                if short_title:
+                    clause["short_title"] = short_title
+                    
                 self.save_contract(contract)
                 return True
         return False
