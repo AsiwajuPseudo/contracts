@@ -74,7 +74,7 @@ class Core:
         self.save_contract(contract)
         return new_clause
 
-    def update_clause(self, contract_id, clause_id, full_text, publisher_id, publisher_name):
+    def update_clause(self, contract_id, clause_id, full_text, publisher_id, publisher_name. short_title=None):
         contract = self.open_contract(contract_id)
         if not contract:
             return False
@@ -309,7 +309,7 @@ class Core:
                 for i, comment in enumerate(clause["comments"]):
                     if comment["comment_id"] == comment_id:
                         # Check if user is authorized to delete
-                        if comment[user_id] == user_id or contract["metadata"]["creator_id"] == yser_id:
+                        if comment[user_id] == user_id or contract["metadata"]["creator_id"] == user_id:
                             clause["comments"].pop(i)
                             self.save_contract(contract)
                             return True, "Comment deleted successfully"
@@ -317,4 +317,30 @@ class Core:
                             return False, "Not authorized to delete this comment"
                 return False, "Comment not found"
         return False, "Clause not found"
-         
+    
+    def move_clause(self, contract_id, clause_id, new_index):
+        contract = self.open_contract(contract_id)
+        if not contract:
+            return False, "Contract not found"
+        
+        clauses = contract["clauses"]
+        
+        # Find the clause to move
+        clause_to_move = next((clause for clause in clauses if clause["clause_id"] == clause_id), None)
+        if not clause_to_move:
+            return False, "Clause not found"
+        
+        # Remove it from its current position
+        clauses.remove(clause_to_move)
+        
+        # Insert it into the new position
+        if new_index < 0 or new_index >= len(clauses):
+            clauses.append(clause_to_move) # Move to end if index is out of bounds
+        else: 
+            clauses.insert(new_index, clause_to_move)
+        
+        # Save updated contract
+        self.save_contract(contract)
+        return True, "Clauses moved successfully"
+        
+                     

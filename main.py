@@ -356,5 +356,34 @@ def get_user_collaborations(user_id):
     
     return jsonify(collaborations), 200
 
+@app.route('/contracts/<contract_id>/clauses/<clause_id>/reorder', methods=['PUT'])
+def reorder_clauses(contract_id, clause_id):
+    data = request.get_json()
+    if not data or 'new_index' not in data or 'user_id' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Open contract
+    contract = contract_manager.open_contract(contract_id)
+    if not contract:
+        return jsonify({'error': 'Contract not found'}), 404
+    
+    # Check if user has permission to reorder clauses (creator or editor)
+    user_id = data['user_id']
+    if contract ['metadata']['creator_id'] != user_id:
+        has_permission = any(
+            collab['user_id'] == user_id and collab['role'] == 'Editor'
+            for collab in contract['metadata']['collaborators']
+        )
+        if not has_permission:
+            return jsonify({'error': 'Permission denied. Only creator or editors can reorder clauses'}), 403
+        
+    # Update clause position
+    success, message = contract_manager.move_clause(contract_id, clause_id, data['new_index'])
+    if not success:
+        return jsonify({'error': message}), 400
+        
+    return jsonify({'message': 'Clause moved successfully'}), 200
+        
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port='8081')
