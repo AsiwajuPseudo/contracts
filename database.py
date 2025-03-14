@@ -215,3 +215,14 @@ class Database:
         except sqlite3.Error as e:
             print(f"Database error in get_user_collaborations: {e}")
             return []
+        
+    def update_contract_status(self, contract_id, new_status):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('UPDATE contracts SET status = ? WHERE contract_id = ?', (new_status, contract_id))
+                conn.commit()
+                return True
+        except sqlite3.Error as e:
+            print(f"Error updating contract status: {e}")
+            return False

@@ -29,6 +29,7 @@ class Core:
                 "title": title,
                 "description": description,
                 "creation_date": creation_date,
+                "status": "Draft",
                 "collaborators": collaborators if collaborators else []
             },
             "clauses": []
@@ -347,6 +348,24 @@ class Core:
         
         # Save updated contract
         self.save_contract(contract)
-        return True, "Clauses moved successfully"
+        return True, "Clause moved successfully"
+    
+    def approve_contract(self, contract_id, user_id):
+        contract = self.open_contract(contract_id)
+        if not contract:
+            return False, "Contract not found"
+
+        # Only Approvers can approve the contract
+        has_permission = any(
+            collab["user_id"] == user_id and collab['role'] == 'Approver'
+            for collab in contract['metadata']['collaborators']
+        )      
+        if not has_permission:
+            return False, "Only Approvers can approve the contract" 
         
+        # Change status to Approved
+        contract['metadata']['status'] = 'Approved'
+        self.save_contract(contract)
+        
+        return True, "Contract approved successfully"
                      

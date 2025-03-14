@@ -384,7 +384,23 @@ def reorder_clauses(contract_id, clause_id):
         return jsonify({'error': message}), 400
         
     return jsonify({'message': 'Clause moved successfully'}), 200
-        
+
+@app.route('/contracts/<contract_id>/approve', methods=['PUT'])
+def approve_contract(contract_id):
+    data = request.get_json()
+    if not data or 'user_id' not in data:
+        return jsonify({'error': 'Missing user_id field'}), 400
+    
+    success, message = contract_manager.approve_contract(contract_id, data["user_id"] )
+    if not success:
+        return jsonify({'error': message}), 403
+    
+    # Update db
+    db_success= database.update_contract_status(contract_id, "Approved")
+    if not db_success:
+        return jsonify({'error': message}), 403
+    
+    return jsonify({'message': 'Contract approved successfully'}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port='8081')
