@@ -36,7 +36,7 @@ class Database:
                 user = cursor.fetchone()
                 if user:
                     # Base response
-                    response = { "status": "success", "name": user[1], "email": user[2], "phone": user[3], "user_type": user[4], "code": user[5], "account_status": user[7], "next_date": user[8], "isadmin": user[10]}
+                    response = { "status": "success", "name": user[1], "email": user[2], "phone": user[3], "user_type": user[4], "code": user[5], "user_status": user[7], "next_date": user[8], "isadmin": user[10]}
 
                     # Add lawfirm name if user type is "org"
                     if user[4] == "org":
@@ -67,7 +67,7 @@ class Database:
                         "phone": user[3],
                         "user_type": user[4],
                         "code": user[5],
-                        "account_status": user[7],
+                        "user_status": user[7],
                         "next_date": user[8],
                         "isadmin": user[10]
                     }

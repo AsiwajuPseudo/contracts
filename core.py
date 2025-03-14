@@ -3,13 +3,18 @@ import os
 from datetime import datetime
 import uuid
 import threading
+from docx import Document
+import re
 
 class Core:
-    def __init__(self, contract_directory="../store"):
-        self.contract_directory = contract_directory
+    def __init__(self):
+        self.contract_directory = "../store/json"
+        self.contract_docx_directory = "../store/docx"
         self.lock = threading.Lock() # lock for thread safety
         if not os.path.exists(self.contract_directory):
             os.makedirs(self.contract_directory)
+        if not os.path.exists(self.contract_docx_directory):
+            os.makedirs(self.contract_docx_directory)
 
     def _generate_id(self):
         return str(uuid.uuid4())
@@ -44,7 +49,7 @@ class Core:
             return None
         
         try:
-            with open(contract_path, "r") as f:
+            with self.lock, open(contract_path, "r") as f: # Lock applied to reads
                 return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             return None
@@ -52,8 +57,65 @@ class Core:
     def save_contract(self, contract):
         contract_path = self._get_contract_path(contract["metadata"]["contract_id"])
         with self.lock:
-            with open(contract_path, "w") as f:
+            with open(contract_path, "w") as f: # Lock applied to writes
                 json.dump(contract, f, indent=4)
+                
+    def sanitize_filename(self, title):
+        '''Remove special characters to make a safe filename'''
+        return re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
+    
+    def convert_to_docx(self, contract_id):
+        '''Convert a JSON contract into a DOCX file'''
+        contract = self.open_contract(contract_id) 
+        if not contract:
+            return None, "Contract not found"
+        
+        doc = Document()
+        metadata = contract["metadata"] 
+        
+        # Use the contract title for the filename
+        safe_title = self.sanitize_filename(metadata["title"])
+        docx_filename = f"{safe_title}.docx"
+        docx_path = os.path.join(self.contract_docx_directory, docx_filename)
+        
+        # Format creation date
+        creation_date = metadata["creation_date"].split("T")[0] # Extract YYYY-MM-DD
+        
+        # Title
+        doc.add_heading(metadata["title"], level=1)
+        
+        # Contract Info
+        doc.add_paragraph(f"Created by: {metadata['creator_name']}")
+        doc.add_paragraph(f"Creation Date: {creation_date}")
+        doc.add_paragraph(f"Status: {metadata['status']}")
+        doc.add_paragraph(f"Description: {metadata['description']}\n")
+        
+        # Clauses
+        # Clause numbering
+        clause_number = 1
+        for clause in contract["clauses"]:
+            doc.add_heading(f"{clause_number}.{clause['short_title']}", level = 3)
+            
+            # Get latest version of the clause
+            latest_version = clause["versions"][0]
+            clause_text = latest_version["full_text"]
+            
+            # Sentence-level numbering
+            sentence_number = 1
+            for sentence in clause_text.split("\n"):
+                sentence = sentence.strip()
+                if sentence:
+                    doc.add_paragraph(f"{clause_number}.{sentence_number} {sentence}")
+                    sentence_number += 1
+                
+            clause_number += 1 # Increment for the next clause
+            
+        doc.save(docx_path)
+        
+        return docx_path, "DOCX file generated successfully"
+                
+        
+        
 
     def add_clause(self, contract_id, short_title, full_text, publisher):
         contract = self.open_contract(contract_id)
@@ -222,7 +284,8 @@ class Core:
     def delete_contract(self, contract_id):
         contract_path = self._get_contract_path(contract_id)
         if os.path.exists(contract_path):
-            os.remove(contract_path)
+            with self.lock:
+                os.remove(contract_path)
             return True
         return False
 
@@ -316,7 +379,7 @@ class Core:
                 for i, comment in enumerate(clause["comments"]):
                     if comment["comment_id"] == comment_id:
                         # Check if user is authorized to delete
-                        if comment[user_id] == user_id or contract["metadata"]["creator_id"] == user_id:
+                        if comment['user_id'] == user_id or contract["metadata"]["creator_id"] == user_id:
                             clause["comments"].pop(i)
                             self.save_contract(contract)
                             return True, "Comment deleted successfully"

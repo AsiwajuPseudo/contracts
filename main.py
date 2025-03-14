@@ -1,9 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-
-
 from core import Core
 from database import Database
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -401,6 +400,18 @@ def approve_contract(contract_id):
         return jsonify({'error': message}), 403
     
     return jsonify({'message': 'Contract approved successfully'}), 200
+
+@app.route('/contracts/<contract_id>/export', methods =['GET'])
+def export_contract(contract_id):
+    '''Generate and download a DOCX version of a contract'''
+    docx_path, message = contract_manager.convert_to_docx(contract_id)
+    
+    if not docx_path:
+        return jsonify({'error': message}), 404
+    
+    return jsonify({'message': 'DOCX file generated successfully', 'file_path': docx_path}), 200
+    
+    # return send_file(docx_path, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port='8081')
