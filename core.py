@@ -5,6 +5,10 @@ import uuid
 import threading
 from docx import Document
 import re
+import openai
+from dotenv import load_dotenv
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class Core:
     def __init__(self):
@@ -431,4 +435,16 @@ class Core:
         self.save_contract(contract)
         
         return True, "Contract approved successfully"
+    
+    def explain_clause(self, clause_text):
+        """Use OpenAI API to explain a contract clause in simple terms."""
+        prompt = f"Explain this contract clause in a simple and clear way:\n\n{clause_text}"
+        
+        response = openai.ChatCompletion.create(
+            model ="gpt-4"
+            messages=[{"role": "system", "content": "You are a legal AI assistant that explains contract clauses."},
+                      {"role": "user", "content": prompt}]
+        )
+        
+        return response["choices"[0]["message"]["content"].strip()]
                      
