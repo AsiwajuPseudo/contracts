@@ -411,7 +411,24 @@ def export_contract(contract_id):
     
     return jsonify({'message': 'DOCX file generated successfully', 'file_path': docx_path}), 200
     
-    # return send_file(docx_path, as_attachment=True)
+@app.route('/contracts/<contract_id>/clauses/<clause_id>/explain', methods=['GET'])
+def explain_clause(contract_id, clause_id):
+    '''Generate an AI-powered explanation for a contract clause'''
+    contract = contract_manager.open_contract(contract_id)
+    if not contract:
+        return jsonify({'error': 'Contract not found'}), 404
+    
+    # Find the clause
+    clause = next((c for c in contract["clauses"] if c["clause_id"] == clause_id), None)
+    if not clause:
+        return jsonify({'error': 'Clause not found'}), 404
+    
+    # Get latest version of the clause
+    latest_version = clause["versions"][0]
+    explanation = contract_manager.explain_clause(latest_version["full_text"])
+    
+    return jsonify({'explanation': explanation}), 200
+                      
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port='8081')
