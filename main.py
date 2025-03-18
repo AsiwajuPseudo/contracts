@@ -1,10 +1,14 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, session
 from flask_cors import CORS
 from core import Core
 from database import Database
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY")
 CORS(app)
 
 contract_manager = Core()
@@ -429,6 +433,44 @@ def explain_clause(contract_id, clause_id):
     
     return jsonify({'explanation': explanation}), 200
                       
+@app.route('/contracts/<contract_id>/clauses/<clause_id>/ask', methods =['POST'])
+def ask_clause_question(contract_id, clause_id):
+    """Answer user questions about a contract clause with multi-turn coversation support."""
+    data = request.get_json()
+    if not data or "question" not in data:
+        return jsonify({'error': 'Missing question parameter'}), 400
+    
+    contract = contract_manager.open_contract(contract_id)
+    if not contract:
+        return jsonify({'error': 'Contract not found'}), 404
+    
+    # Find the clause
+    clause = next((c for c in contract["clauses"] if c["clause_id"] == clause_id), None)
+    if not clause:
+        return jsonify({'error': 'Clause not found'}), 404
+    
+    latest_version = clause["versions"] [0] ["full_text"]
+    
+    # Create a unique session key for this conversation
+    session_key = f"{contract_id}_{clause_id}_chat"
+    if session_key not in session:
+        session[session_key] = [] # Initialize conversation history
+        
+    conversation_history = session[session_key]
+    
+    # Store the user's question in the session
+    user_question = data["question"]
+    
+    if not conversation_history or conversation_history[-1]["content"] != data["question"]:
+        conversation_history.append({"role": "user", "content": data["question"]})
+    #Get answer
+    answer = contract_manager.ask_clause_question(latest_version, conversation_history, user_question)
+    # Then append AI response to conversation history
+    conversation_history.append({"role": "assistant", "content": answer})
+    session[session_key] = conversation_history # Update session history
+    
+    return jsonify({'answer': answer, 'conversation': conversation_history}), 200
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port='8081')
