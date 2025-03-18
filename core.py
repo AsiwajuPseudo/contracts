@@ -29,7 +29,8 @@ class Core:
     def _get_contract_path(self, contract_id):
         return f"{self.contract_directory}/{contract_id}.json"
 
-    def create_contract(self, creator_id, creator_name, title, description, collaborators=None):
+    def create_contract(self, creator_id, creator_name, title, description, template_data=None, collaborators=None):
+        """Create a new contract, either from scratch or from a template."""
         contract_id = self._generate_id()
         creation_date = datetime.now().isoformat()
         
@@ -46,9 +47,26 @@ class Core:
             },
             "clauses": []
         }
+            # Load clauses if using a template
+        if template_data:
+            for clause in template_data["clauses"]:
+                contract["clauses"].append({
+                    "clause_id": self._generate_id(),
+                    "short_title": clause["short_title"],
+                    "versions": [
+                        {
+                            "date": datetime.now().isoformat(),
+                            "full_text": clause["versions"][0]["full_text"],
+                            "publisher_id": creator_id,
+                            "publisher_name": creator_name
+                        }
+                    ],
+                    "comments": []
+                })
         
         self.save_contract(contract)
         return contract_id
+        
 
     def open_contract(self, contract_id):
         contract_path = self._get_contract_path(contract_id)
