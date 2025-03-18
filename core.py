@@ -441,12 +441,32 @@ class Core:
     
     def explain_clause(self, clause_text):
         """Use OpenAI API to explain a contract clause in simple terms."""
-        prompt = f"{clause_text}"
+        
+        # prompt = f"{clause_text}"
         
         response = client.chat.completions.create(
             model ="gpt-4",
             messages=[{"role": "system", "content": "You are a legal AI assistant that explains contract clauses. Explain the provided clause from a contract in a simple and clear way, in not more than 200 words:"},
-                      {"role": "user", "content": prompt}]
+                      {"role": "user", "content": f"{clause_text}"}]
+        )
+        
+        return response.choices[0].message.content.strip()
+    
+    def ask_clause_question(self, clause_text, conversation_history, user_question):
+        """Use OpenAI API to answer questions related to a specific clause with context."""
+        messages = [
+            {"role": "system", "content": "You are a legal AI assistant that answers user questions in not more than 200 words, based on contract clauses."},
+            {"role": "assistant", "content": f"Clause: {clause_text}"},
+        ]
+        
+        # Add conversation history
+        messages.extend(conversation_history)
+        # Add new question from user
+        messages.append({"role": "user", "content": user_question})
+        
+        response = client.chat.completions.create(
+            model = "gpt-4",
+            messages =messages
         )
         
         return response.choices[0].message.content.strip()
