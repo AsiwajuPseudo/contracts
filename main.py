@@ -3,6 +3,7 @@ from flask_cors import CORS
 from core import Core
 from database import Database
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,6 +14,8 @@ CORS(app)
 
 contract_manager = Core()
 database=Database()
+
+TEMPLATE_DIR = "../store/templates"
 
 # Pinging the system
 @app.route('/ping', methods=['GET'])
@@ -37,10 +40,6 @@ def create_contract():
     if 'name' not in profile:
         return jsonify({'error': 'Account does not exist'}), 401
     
-    # Updated this for detailed error messages
-    # if not data or 'user_id' not in data or 'title' not in data or 'description' not in data:
-    #     return jsonify({'error': 'Missing required fields'}), 400
-
     contract_id = contract_manager.create_contract(
         creator_id=data['user_id'],
         creator_name=profile['name'],
@@ -49,6 +48,55 @@ def create_contract():
     )
     # Store in databse and check result
     add=database.create_contract(contract_id, data['title'], data['user_id'])
+    if not add:
+        return jsonify({'error': 'Failed to create contract'}), 500
+    
+    return jsonify({'contract_id': contract_id}), 201
+
+@app.route('/templates', methods=['GET'])
+def get_templates():
+    '''Retrieve a list of available contract templates.'''
+    templates = [f.replace(".json", "") for f in os.listdir(TEMPLATE_DIR) if f.endswith(".json")]
+    return jsonify({"templates": templates}), 200
+
+@app.route('/create_contract_from_template', methods=['POST'])
+def create_contract_from_template():
+    # CReate new contract from selected template
+    data = request.get_json()
+    # Input validation
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    if 'user_id' not in data:
+        return jsonify({'error': 'Missing user_id field'}), 400
+    if 'title' not in data:
+        return jsonify({'error': 'Missing title field'}), 400
+    if 'description' not in data:
+        return jsonify({'error' : 'Missing description field'}), 400
+    if 'template_name' not in data:
+        return jsonify({"error": "Missing template_name field"}), 400
+    
+    # Get user profile
+    profile = database.user_profile(data['user_id']) 
+    if 'name' not in profile:
+        return jsonify({'error': 'Account does not exist'}), 401
+    
+    # Load the template
+    template_path = os.path.join('../store/templates', f"{data['template_name']}.json")
+    if not os.path.exists(template_path):
+        return jsonify({'error': 'Template not found'}), 404
+    
+    with open(template_path, "r") as f:
+        template_data = json.load(f)
+    
+    contract_id = contract_manager.create_contract(
+        creator_id = data['user_id'],
+        creator_name = profile['name'],
+        title=data['title'],
+        description = data['description'],
+        template_data = template_data
+    )
+    
+    add = database.create_contract(contract_id, data ['title'], data['user_id'])
     if not add:
         return jsonify({'error': 'Failed to create contract'}), 500
     
